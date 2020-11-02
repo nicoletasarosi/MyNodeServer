@@ -88,12 +88,50 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
+/***/ "./src/IceCream.js":
+/*!*************************!*\
+  !*** ./src/IceCream.js ***!
+  \*************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return IceCream; });
+class IceCream {
+  constructor({
+    id,
+    name,
+    addedDate,
+    type,
+    kcal,
+    hasGluten,
+    photo
+  }) {
+    this.id = id;
+    this.name = name;
+    this.addedDate = addedDate;
+    this.type = type;
+    this.kcal = kcal;
+    this.hasGluten = hasGluten;
+    this.photo = photo;
+  }
+
+}
+
+/***/ }),
+
 /***/ "./src/index.js":
 /*!**********************!*\
   !*** ./src/index.js ***!
   \**********************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
+/*! no exports provided */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _IceCream__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./IceCream */ "./src/IceCream.js");
+
 
 const Koa = __webpack_require__(/*! koa */ "koa");
 
@@ -133,35 +171,22 @@ app.use(async (ctx, next) => {
     ctx.response.status = 500;
   }
 });
-
-class Item {
-  constructor({
-    id,
-    text,
-    date,
-    version
-  }) {
-    this.id = id;
-    this.text = text;
-    this.date = date;
-    this.version = version;
-  }
-
-}
-
-const items = [];
+const iceCreams = [];
 
 for (let i = 0; i < 3; i++) {
-  items.push(new Item({
+  iceCreams.push(new _IceCream__WEBPACK_IMPORTED_MODULE_0__["default"]({
     id: `${i}`,
-    text: `item ${i}`,
-    date: new Date(Date.now() + i),
-    version: 1
+    name: `Ice Cream ${i}`,
+    addedDate: new Date(Date.now() + i),
+    type: 'Chocolate',
+    kcal: 180,
+    hasGluten: true,
+    photo: 'https://recipeland.com/images/r/17839/2dd845aa872d103562c9_1024.jpg'
   }));
 }
 
-let lastUpdated = items[items.length - 1].date;
-let lastId = items[items.length - 1].id;
+let lastUpdated = iceCreams[iceCreams.length - 1].addedDate;
+let lastId = iceCreams[iceCreams.length - 1].id;
 const pageSize = 10;
 
 const broadcast = data => wss.clients.forEach(client => {
@@ -171,31 +196,22 @@ const broadcast = data => wss.clients.forEach(client => {
 });
 
 const router = new Router();
-router.get('/item', ctx => {
-  const ifModifiedSince = ctx.request.get('If-Modif ied-Since');
-
-  if (ifModifiedSince && new Date(ifModifiedSince).getTime() >= lastUpdated.getTime() - lastUpdated.getMilliseconds()) {
-    ctx.response.status = 304; // NOT MODIFIED
-
-    return;
-  }
-
+router.get('/icecream', ctx => {
   const text = ctx.request.query.text;
   const page = parseInt(ctx.request.query.page) || 1;
   ctx.response.set('Last-Modified', lastUpdated.toUTCString());
-  const sortedItems = items.filter(item => text ? item.text.indexOf(text) !== -1 : true).sort((n1, n2) => -(n1.date.getTime() - n2.date.getTime()));
-  const offset = (page - 1) * pageSize; // ctx.response.body = {
-  //   page,
-  //   items: sortedItems.slice(offset, offset + pageSize),
-  //   more: offset + pageSize < sortedItems.length
-  // };
-
-  ctx.response.body = items;
+  const offset = (page - 1) * pageSize;
+  ctx.response.body = {
+    page,
+    icecreams: iceCreams,
+    more: offset + pageSize < iceCreams.length
+  };
+  ctx.response.body = iceCreams;
   ctx.response.status = 200;
 });
-router.get('/item/:id', async ctx => {
+router.get('/icecream/:id', async ctx => {
   const itemId = ctx.request.params.id;
-  const item = items.find(item => itemId === item.id);
+  const item = iceCreams.find(item => itemId === item.id);
 
   if (item) {
     ctx.response.body = item;
@@ -203,21 +219,21 @@ router.get('/item/:id', async ctx => {
   } else {
     ctx.response.body = {
       issue: [{
-        warning: `item with id ${itemId} not found`
+        warning: `Ice Cream with id ${itemId} not found`
       }]
     };
     ctx.response.status = 404; // NOT FOUND (if you know the resource was deleted, then return 410 GONE)
   }
 });
 
-const createItem = async ctx => {
-  const item = ctx.request.body;
+const createIceCream = async ctx => {
+  const iceCream = ctx.request.body;
 
-  if (!item.text) {
+  if (!iceCream.name) {
     // validation
     ctx.response.body = {
       issue: [{
-        error: 'Text is missing'
+        error: 'Name is missing'
       }]
     };
     ctx.response.status = 400; //  BAD REQUEST
@@ -225,31 +241,29 @@ const createItem = async ctx => {
     return;
   }
 
-  item.id = `${parseInt(lastId) + 1}`;
-  lastId = item.id;
-  item.date = Date.now();
-  item.version = 1;
-  items.push(item);
-  ctx.response.body = item;
+  iceCream.id = `${parseInt(lastId) + 1}`;
+  lastId = iceCream.id;
+  iceCreams.push(iceCream);
+  ctx.response.body = iceCream;
   ctx.response.status = 201; // CREATED
 
   broadcast({
     event: 'created',
     payload: {
-      item
+      iceCream
     }
   });
 };
 
-router.post('/item', async ctx => {
-  await createItem(ctx);
+router.post('/icecream', async ctx => {
+  await createIceCream(ctx);
 });
-router.put('/item/:id', async ctx => {
+router.put('/icecream/:id', async ctx => {
   const id = ctx.params.id;
-  const item = ctx.request.body;
-  const itemId = item.id;
+  const iceCream = ctx.request.body;
+  const iceCreamId = iceCream.id;
 
-  if (itemId && id !== item.id) {
+  if (iceCreamId && id !== iceCream.id) {
     ctx.response.body = {
       issue: [{
         error: `Param id and body id should be the same`
@@ -260,17 +274,17 @@ router.put('/item/:id', async ctx => {
     return;
   }
 
-  if (!itemId) {
-    await createItem(ctx);
+  if (!iceCreamId) {
+    await createIceCream(ctx);
     return;
   }
 
-  const index = items.findIndex(item => item.id === id);
+  const index = iceCreams.findIndex(iceCream => iceCream.id === id);
 
   if (index === -1) {
     ctx.response.body = {
       issue: [{
-        error: `item with id ${id} not found`
+        error: `Ice Cream with id ${id} not found`
       }]
     };
     ctx.response.status = 400; // BAD REQUEST
@@ -278,69 +292,46 @@ router.put('/item/:id', async ctx => {
     return;
   }
 
-  const itemVersion = parseInt(ctx.request.get('ETag')) || item.version;
+  iceCreams[index] = iceCream; //lastUpdated = new Date();
 
-  if (itemVersion < items[index].version) {
-    ctx.response.body = {
-      issue: [{
-        error: `Version conflict`
-      }]
-    };
-    ctx.response.status = 409; // CONFLICT
-
-    return;
-  }
-
-  item.version++;
-  items[index] = item;
-  lastUpdated = new Date();
-  ctx.response.body = item;
+  ctx.response.body = iceCream;
   ctx.response.status = 200; // OK
 
   broadcast({
     event: 'updated',
     payload: {
-      item
+      iceCream
     }
   });
 });
-router.del('/item/:id', ctx => {
+router.del('/icecream/:id', ctx => {
   const id = ctx.params.id;
-  const index = items.findIndex(item => id === item.id);
+  const index = iceCreams.findIndex(iceCream => id === iceCream.id);
 
   if (index !== -1) {
-    const item = items[index];
-    items.splice(index, 1);
-    lastUpdated = new Date();
+    const iceCream = iceCreams[index];
+    iceCreams.splice(index, 1); //lastUpdated = new Date();
+
     broadcast({
       event: 'deleted',
       payload: {
-        item
+        iceCream
       }
     });
   }
 
   ctx.response.status = 204; // no content
-});
-setInterval(() => {
-  lastUpdated = new Date();
-  lastId = `${parseInt(lastId) + 1}`;
-  const item = new Item({
-    id: lastId,
-    text: `item ${lastId}`,
-    date: lastUpdated,
-    version: 1
-  });
-  items.push(item);
-  console.log(`
-   ${item.text}`);
-  broadcast({
-    event: 'created',
-    payload: {
-      item
-    }
-  });
-}, 15000);
+}); //
+// setInterval(() => {
+//   lastUpdated = new Date();
+//   lastId = `${parseInt(lastId) + 1}`;
+//   const item = new Item({ id: lastId, text: `item ${lastId}`, date: lastUpdated, version: 1 });
+//   items.push(item);
+//   console.log(`
+//    ${item.text}`);
+//   broadcast({ event: 'created', payload: { item } });
+// }, 15000);
+
 app.use(router.routes());
 app.use(router.allowedMethods());
 server.listen(3000);
@@ -354,7 +345,7 @@ server.listen(3000);
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(/*! /Users/nicoletasarosi/Downloads/my-node-server/src/index.js */"./src/index.js");
+module.exports = __webpack_require__(/*! /Users/nicoletasarosi/Facultate anu 3/MyNodeServer/src/index.js */"./src/index.js");
 
 
 /***/ }),
